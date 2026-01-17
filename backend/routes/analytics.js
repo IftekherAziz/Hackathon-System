@@ -9,8 +9,8 @@ router.get('/submissions', async (req, res) => {
         const { startDate, endDate } = req.query;
         
         // Default filter: submissions after November 8, 2025
-        const filterStartDate = startDate || '2025-11-08 00:00:00';
-        const filterEndDate = endDate || '2099-12-31 23:59:59';
+        const filterStartDate = startDate || '2025-10-01 00:00:00';
+        const filterEndDate = endDate || '2099-11-10 23:59:59';
         
         const [results] = await req.mysqlPool.query(`
             SELECT

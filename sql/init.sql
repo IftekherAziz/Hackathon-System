@@ -1,5 +1,4 @@
 -- Hackathon Management System - Database Schema
--- Based on MS1 ER Diagram (Updated for MS2)
 
 -- Drop tables in reverse order of dependencies
 DROP TABLE IF EXISTS Evaluates;

@@ -46,12 +46,16 @@ async function apiCall(endpoint, options = {}) {
         const data = await response.json();
         
         if (!response.ok) {
-            throw new Error(data.error || 'API request failed');
+            throw new Error(data.error || `HTTP ${response.status}: Request failed`);
         }
         
         return data;
     } catch (error) {
         console.error('API Error:', error);
+        // Re-throw with more context
+        if (error.message.includes('Failed to fetch')) {
+            throw new Error('Cannot connect to server. Make sure Docker containers are running.');
+        }
         throw error;
     }
 }
@@ -508,7 +512,19 @@ async function loadDbStats() {
         document.getElementById('db-stats').innerHTML = statsHtml;
         
     } catch (error) {
-        document.getElementById('db-stats').innerHTML = `<p class="badge badge-error">Error: ${error.message}</p>`;
+        document.getElementById('db-stats').innerHTML = `
+            <div style="color: #c53030; padding: 1rem; background: #fed7d7; border-radius: 6px;">
+                <strong>Error:</strong> ${error.message}
+                <br><br>
+                <strong>Troubleshooting:</strong>
+                <ol style="margin-top: 0.5rem; margin-left: 1.5rem;">
+                    <li>Make sure Docker is running</li>
+                    <li>Run: <code>docker-compose up --build</code></li>
+                    <li>Wait for "Server running on port 3000" message</li>
+                    <li>Check terminal for database connection errors</li>
+                </ol>
+            </div>
+        `;
     }
 }
 
@@ -549,6 +565,42 @@ document.getElementById('import-data-btn').addEventListener('click', async () =>
     } finally {
         btn.disabled = false;
         btn.textContent = 'Import Data (Replace Existing)';
+    }
+});
+
+// NoSQL Migration Button Handler
+document.getElementById('migrate-nosql-btn').addEventListener('click', async () => {
+    if (!confirm('This will clear MongoDB collections and migrate data from MySQL. Continue?')) {
+        return;
+    }
+
+    const btn = document.getElementById('migrate-nosql-btn');
+    const statusDiv = document.getElementById('migrate-status');
+
+    btn.disabled = true;
+    btn.textContent = 'Migrating...';
+    statusDiv.innerHTML = '<p class="loading">Migrating data to MongoDB...</p>';
+
+    try {
+        const result = await apiCall('/nosql/migrate', { method: 'POST' });
+        statusDiv.innerHTML = `
+            <p class="badge badge-success">Migration complete!</p>
+            <div class="summary-grid" style="margin-top: 1rem;">
+                ${Object.entries(result.stats).map(([key, value]) => `
+                    <div class="summary-item">
+                        <div class="value">${value}</div>
+                        <div class="label">${key}</div>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+        showToast('MongoDB migration completed!', 'success');
+    } catch (error) {
+        statusDiv.innerHTML = `<p class="badge badge-error">Migration failed: ${error.message}</p>`;
+        showToast(`Migration failed: ${error.message}`, 'error');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Migrate to MongoDB';
     }
 });
 
