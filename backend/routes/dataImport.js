@@ -316,23 +316,28 @@ async function generateMySQLData(pool) {
         }
 
         // ========================================
-        // HACKATHON EVENT
+        // HACKATHON EVENT - UPDATED TO CREATE FUTURE EVENTS
         // Attributes: event_id (PK), name, start_date, end_date, event_type, max_participants
         // Relationships: hosts (M:1 with Venue via venue_id FK)
         // ========================================
         const events = [];
-        for (let i = 0; i < 4; i++) {
-            // Create events with dates that allow submissions (some current/future)
-            const startDate = new Date('2025-01-15');
-            startDate.setMonth(startDate.getMonth() + (i * 3)); // Spread events across the year
-            const endDate = new Date(startDate);
-            endDate.setDate(endDate.getDate() + randomInt(2, 4));
+        const today = new Date(); // Get current date
+        
+        for (let i = 0; i < 10; i++) {
+            // Create events starting from today and extending into the future
+            const startDate = new Date(today);
+            startDate.setDate(today.getDate() + (i * 30)); // Events start at 0, 30, 60, 90 days from today
             
+            const endDate = new Date(startDate);
+            endDate.setDate(startDate.getDate() + randomInt(2, 5)); // Event lasts 2-5 days
+            
+            const baseEventName = randomData.eventNames[i % randomData.eventNames.length];
+            const eventName = i < randomData.eventNames.length ? baseEventName : `${baseEventName} ${i + 1}`;
             const [result] = await conn.query(
                 'INSERT INTO HackathonEvent (name, start_date, end_date, event_type, max_participants, venue_id) VALUES (?, ?, ?, ?, ?, ?)',
-                [randomData.eventNames[i], formatDate(startDate), formatDate(endDate), 'Hackathon', randomInt(50, 150), venues[i % venues.length].id]
+                [eventName, formatDate(startDate), formatDate(endDate), 'Hackathon', randomInt(50, 150), venues[i % venues.length].id]
             );
-            events.push({ id: result.insertId, name: randomData.eventNames[i], startDate, endDate });
+            events.push({ id: result.insertId, name: eventName, startDate, endDate });
         }
 
         // ========================================
@@ -386,6 +391,7 @@ async function generateMySQLData(pool) {
                 } while (registeredEvents.has(eventIdx));
                 registeredEvents.add(eventIdx);
                 
+                // Register before event starts
                 const regTime = randomDate(new Date('2025-01-01'), events[eventIdx].startDate);
                 await conn.query(
                     'INSERT INTO Registration (person_id, event_id, registration_number, registration_timestamp, payment_status, ticket_type) VALUES (?, ?, ?, ?, ?, ?)',
@@ -428,7 +434,7 @@ async function generateMySQLData(pool) {
         }
 
         // ========================================
-        // SUBMISSION
+        // SUBMISSION - UPDATED TO CREATE SUBMISSIONS WITHIN EVENT DATES
         // Attributes: submission_id (PK), project_name, description, submission_time, technology_stack, repository_url
         // Added for use case: event_id (FK), submission_type
         // Relationship: creates (M:N with Participant)
@@ -436,15 +442,24 @@ async function generateMySQLData(pool) {
         const submissions = [];
         for (let i = 0; i < 8; i++) {
             const eventIdx = i % events.length;
-            const subTime = new Date(events[eventIdx].startDate);
-            subTime.setHours(subTime.getHours() + randomInt(2, 24));
+            const event = events[eventIdx];
+            
+            // Create submission time between event start and end
+            const subTime = new Date(event.startDate);
+            subTime.setHours(subTime.getHours() + randomInt(12, 48)); // 12-48 hours after event starts
+            
+            // Ensure submission time doesn't exceed event end date
+            if (subTime > event.endDate) {
+                subTime.setTime(event.endDate.getTime() - (3600000 * 2)); // 2 hours before event ends
+            }
+            
             const subType = randomInt(0, 1) === 0 ? 'individual' : 'team';
             
             const [result] = await conn.query(
                 `INSERT INTO Submission (event_id, project_name, description, submission_time, technology_stack, repository_url, submission_type) 
                  VALUES (?, ?, ?, ?, ?, ?, ?)`,
                 [
-                    events[eventIdx].id,
+                    event.id,
                     randomData.projectNames[i],
                     `An innovative project focusing on ${randomData.projectNames[i].toLowerCase()}`,
                     formatDateTime(subTime),
@@ -453,7 +468,7 @@ async function generateMySQLData(pool) {
                     subType
                 ]
             );
-            submissions.push({ id: result.insertId, eventId: events[eventIdx].id, type: subType });
+            submissions.push({ id: result.insertId, eventId: event.id, type: subType });
         }
 
         // ========================================

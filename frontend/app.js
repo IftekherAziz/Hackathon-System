@@ -67,7 +67,7 @@ function loadSectionData(sectionId) {
             loadDashboard();
             break;
         case 'submit-project':
-            loadParticipantsForProject();
+            loadEventsForSubmission();
             loadSubmissions();
             break;
         case 'register-event':
@@ -137,25 +137,118 @@ async function loadDashboard() {
     }
 }
 
-// ==================== SUBMIT PROJECT (Student 1) ====================
+// ==================== SUBMIT PROJECT (Student 1) - ENHANCED ====================
 
-async function loadParticipantsForProject() {
+// Load available events for submission
+async function loadEventsForSubmission() {
     try {
-        const data = await apiCall('/submissions/participants');
+        const data = await apiCall('/submissions/events/available');
+        
+        const selectHtml = data.data.map(e => 
+            `<option value="${e.event_id}">${e.name} (${e.event_type}) - ${new Date(e.start_date).toLocaleDateString()} [${e.registration_count} registered, ${e.submission_count} submissions]</option>`
+        ).join('');
+        
+        const eventSelect = document.getElementById('event-select-submission');
+        if (eventSelect) {
+            eventSelect.innerHTML = '<option value="">-- Select an Event --</option>' + selectHtml;
+        }
+        
+        // Clear team members list when no event is selected
+        document.getElementById('team-members-list').innerHTML = '<p class="hint">Please select an event first to see registered participants.</p>';
+        
+    } catch (error) {
+        console.error('Failed to load events:', error);
+        showToast('Failed to load events for submission', 'error');
+    }
+}
+
+// Load participants for selected event (Enhanced with event filtering)
+async function loadParticipantsForProject(eventId) {
+    try {
+        if (!eventId) {
+            document.getElementById('team-members-list').innerHTML = '<p class="hint">Please select an event first to see registered participants.</p>';
+            return;
+        }
+        
+        const data = await apiCall(`/submissions/participants/${eventId}`);
+        
+        if (data.data.length === 0) {
+            document.getElementById('team-members-list').innerHTML = '<p class="empty-state">No participants registered for this event yet.</p>';
+            return;
+        }
         
         const listHtml = data.data.map(p => `
             <div class="checkbox-item">
                 <input type="checkbox" id="team-${p.person_id}" value="${p.person_id}">
-                <label for="team-${p.person_id}">${p.first_name} ${p.last_name} (${p.email})</label>
+                <label for="team-${p.person_id}">
+                    ${p.first_name} ${p.last_name} (${p.email})
+                    <span class="hint" style="display: block; margin-left: 1.75rem; font-size: 0.8rem;">
+                        Reg: ${p.registration_number} | Ticket: ${p.ticket_type}
+                    </span>
+                </label>
             </div>
         `).join('');
         
-        document.getElementById('team-members-list').innerHTML = listHtml || '<p>No participants available</p>';
+        document.getElementById('team-members-list').innerHTML = listHtml;
         
     } catch (error) {
-        document.getElementById('team-members-list').innerHTML = '<p>Failed to load participants</p>';
+        console.error('Failed to load participants:', error);
+        document.getElementById('team-members-list').innerHTML = '<p class="empty-state">Failed to load participants. Please try again.</p>';
+        showToast('Failed to load participants', 'error');
     }
 }
+
+// Event selection change handler for submission form
+document.addEventListener('DOMContentLoaded', () => {
+    const eventSelect = document.getElementById('event-select-submission');
+    if (eventSelect) {
+        eventSelect.addEventListener('change', async (e) => {
+            const eventId = e.target.value;
+            
+            // Clear submission type when event changes
+            const submissionTypeInputs = document.querySelectorAll('input[name="submission-type"]');
+            submissionTypeInputs.forEach(input => input.checked = false);
+            
+            // Load participants for the selected event
+            if (eventId) {
+                await loadParticipantsForProject(eventId);
+            } else {
+                document.getElementById('team-members-list').innerHTML = '<p class="hint">Please select an event first to see registered participants.</p>';
+            }
+        });
+    }
+    
+    // Submission type change handler
+    const submissionTypeInputs = document.querySelectorAll('input[name="submission-type"]');
+    submissionTypeInputs.forEach(input => {
+        input.addEventListener('change', (e) => {
+            const selectedType = e.target.value;
+            const teamMembersList = document.getElementById('team-members-list');
+            
+            if (selectedType === 'individual') {
+                teamMembersList.classList.add('individual-mode');
+                // Add hint for individual selection
+                const existingHint = document.querySelector('.individual-hint');
+                if (!existingHint) {
+                    const hint = document.createElement('p');
+                    hint.className = 'hint individual-hint';
+                    hint.style.backgroundColor = '#fefcbf';
+                    hint.style.padding = '0.5rem';
+                    hint.style.borderRadius = '4px';
+                    hint.textContent = 'Individual submission: Select only yourself';
+                    teamMembersList.prepend(hint);
+                }
+            } else {
+                teamMembersList.classList.remove('individual-mode');
+                const hint = document.querySelector('.individual-hint');
+                if (hint) hint.remove();
+            }
+        });
+    });
+    
+    // Initialize dashboard on load
+    loadDashboard();
+});
 
 async function loadSubmissions() {
     try {
@@ -167,7 +260,9 @@ async function loadSubmissions() {
                     <thead>
                         <tr>
                             <th>ID</th>
+                            <th>Event</th>
                             <th>Project Name</th>
+                            <th>Type</th>
                             <th>Team Members</th>
                             <th>Technology Stack</th>
                             <th>Submitted</th>
@@ -178,7 +273,9 @@ async function loadSubmissions() {
                         ${data.data.map(s => `
                             <tr>
                                 <td>${s.submission_id}</td>
+                                <td>${s.event_name || 'N/A'}</td>
                                 <td>${s.project_name}</td>
+                                <td><span class="badge ${s.submission_type === 'team' ? 'badge-info' : 'badge-success'}">${s.submission_type || 'N/A'}</span></td>
                                 <td>${s.team_members || 'N/A'}</td>
                                 <td>${s.technology_stack || 'N/A'}</td>
                                 <td>${new Date(s.submission_time).toLocaleString()}</td>
@@ -199,10 +296,26 @@ async function loadSubmissions() {
     }
 }
 
-// Submit Project Form Handler
+// Submit Project Form Handler - ENHANCED
 document.getElementById('submit-project-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     
+    // Get event selection
+    const eventId = parseInt(document.getElementById('event-select-submission').value);
+    if (!eventId) {
+        showToast('Please select an event', 'error');
+        return;
+    }
+    
+    // Get submission type
+    const submissionTypeInput = document.querySelector('input[name="submission-type"]:checked');
+    if (!submissionTypeInput) {
+        showToast('Please select submission type (Individual or Team)', 'error');
+        return;
+    }
+    const submissionType = submissionTypeInput.value;
+    
+    // Get selected team members
     const teamCheckboxes = document.querySelectorAll('#team-members-list input[type="checkbox"]:checked');
     const teamMemberIds = Array.from(teamCheckboxes).map(cb => parseInt(cb.value));
     
@@ -211,12 +324,26 @@ document.getElementById('submit-project-form').addEventListener('submit', async 
         return;
     }
     
+    // Validate submission type consistency
+    if (submissionType === 'individual' && teamMemberIds.length > 1) {
+        showToast('Individual submissions can only have one team member', 'error');
+        return;
+    }
+    
+    if (submissionType === 'team' && teamMemberIds.length === 1) {
+        if (!confirm('You selected "Team" but only chose one member. Continue as team submission?')) {
+            return;
+        }
+    }
+    
     const projectData = {
+        event_id: eventId,
         project_name: document.getElementById('project-name').value,
         description: document.getElementById('project-description').value,
         technology_stack: document.getElementById('tech-stack').value,
         repository_url: document.getElementById('repo-url').value,
-        team_member_ids: teamMemberIds
+        team_member_ids: teamMemberIds,
+        submission_type: submissionType
     };
     
     try {
@@ -225,9 +352,19 @@ document.getElementById('submit-project-form').addEventListener('submit', async 
             body: JSON.stringify(projectData)
         });
         
-        showToast('Project submitted successfully!', 'success');
+        showToast(result.message || 'Project submitted successfully!', 'success');
         e.target.reset();
         teamCheckboxes.forEach(cb => cb.checked = false);
+        
+        // Clear submission type selection
+        const submissionTypeInputs = document.querySelectorAll('input[name="submission-type"]');
+        submissionTypeInputs.forEach(input => input.checked = false);
+        
+        // Reset team members list
+        document.getElementById('team-members-list').innerHTML = '<p class="hint">Please select an event first to see registered participants.</p>';
+        
+        // Reload data
+        loadEventsForSubmission();
         loadSubmissions();
         
     } catch (error) {
@@ -602,11 +739,4 @@ document.getElementById('migrate-nosql-btn').addEventListener('click', async () 
         btn.disabled = false;
         btn.textContent = 'Migrate to MongoDB';
     }
-});
-
-// ==================== INITIALIZATION ====================
-
-// Load dashboard on page load
-document.addEventListener('DOMContentLoaded', () => {
-    loadDashboard();
 });

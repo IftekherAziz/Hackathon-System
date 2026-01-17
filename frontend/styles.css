@@ -440,3 +440,33 @@ footer p {
         width: 100%;
     }
 }
+/* Radio Group Styling */
+.radio-group {
+    display: flex;
+    gap: 1.5rem;
+    margin-top: 0.5rem;
+}
+
+.radio-group input[type="radio"] {
+    width: auto;
+    cursor: pointer;
+}
+
+.radio-group label {
+    display: inline;
+    margin-left: 0.5rem;
+    cursor: pointer;
+    font-weight: normal;
+}
+
+/* Individual Mode Styling */
+.individual-hint {
+    background-color: #fefcbf;
+    padding: 0.5rem;
+    border-radius: 4px;
+    margin-bottom: 0.5rem;
+}
+
+.checkbox-list.individual-mode .checkbox-item:has(input:not(:checked)) {
+    opacity: 0.5;
+}
