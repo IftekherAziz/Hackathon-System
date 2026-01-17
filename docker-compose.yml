@@ -48,7 +48,7 @@ services:
     container_name: hackathon-backend
     restart: always
     ports:
-      - "3002:3002"
+      - "3001:3001"
     environment:
       - DB_HOST=mariadb
       - DB_USER=hackathon_user

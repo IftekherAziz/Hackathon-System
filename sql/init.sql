@@ -76,11 +76,14 @@ CREATE TABLE Sponsor (
 -- Create Submission table
 CREATE TABLE Submission (
     submission_id INT PRIMARY KEY AUTO_INCREMENT,
+    event_id INT,
     project_name VARCHAR(255) NOT NULL,
     description TEXT,
     submission_time DATETIME NOT NULL,
     technology_stack VARCHAR(500),
-    repository_url VARCHAR(500)
+    repository_url VARCHAR(500),
+    submission_type VARCHAR(50),
+    FOREIGN KEY (event_id) REFERENCES HackathonEvent(event_id) ON DELETE CASCADE
 );
 
 -- Create Workshop table (Weak Entity - depends on HackathonEvent)
