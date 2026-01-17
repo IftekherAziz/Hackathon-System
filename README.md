@@ -46,32 +46,14 @@ hackathon-system/
 - Docker and Docker Compose installed
 - Node.js 18+ (for local development without Docker)
 
-## Running with Docker (Recommended)
+
+## Running with Docker
+
 
 1. **Start all services:**
    ```bash
    cd hackathon-system
    docker-compose up --build
-   ```
-
-2. **Access the application:**
-   - Open browser: http://localhost:3000
-
-3. **Stop services:**
-   ```bash
-   docker-compose down
-   ```
-
-4. **Stop and remove data:**
-   ```bash
-   docker-compose down -v
-   ```
-
-## Running Locally (Development)
-
-1. **Start MariaDB and MongoDB:**
-   ```bash
-   docker-compose up mariadb mongodb
    ```
 
 2. **Install backend dependencies:**
@@ -80,22 +62,13 @@ hackathon-system/
    npm install
    ```
 
-3. **Set environment variables:**
-   ```bash
-   export DB_HOST=localhost
-   export DB_USER=hackathon_user
-   export DB_PASSWORD=hackathon_pass
-   export DB_NAME=hackathon_db
-   export MONGO_URI=mongodb://root:root123@localhost:27017/hackathon_db?authSource=admin
-   ```
-
-4. **Start the backend:**
+3. **Start the backend:**
    ```bash
    npm start
    ```
 
-5. **Access the application:**
-   - Open browser: http://localhost:3000
+4. **Access the application:**
+   - Open browser: http://localhost:3001
 
 ## Features
 

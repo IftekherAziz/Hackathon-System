@@ -13,7 +13,7 @@ const randomData = {
     venueNames: ['Tech Hub Vienna', 'Innovation Center', 'Startup Campus', 'Digital Factory', 'Code Space'],
     venueAddresses: ['Mariahilfer Straße 123, 1060 Vienna', 'Karlsplatz 13, 1040 Vienna', 'Prater 45, 1020 Vienna', 'Donaustadt 78, 1220 Vienna'],
     facilities: ['WiFi, Projectors, Catering', 'WiFi, Whiteboard, Coffee', 'WiFi, Stage, Sound System', 'WiFi, Labs, Mentors'],
-    eventTypes: ['Hackathon', 'Conference', 'Workshop', 'Meetup'],
+    eventTypes: ['Hackathon'],
     eventNames: ['AI Innovation Hackathon', 'Green Tech Challenge', 'Web Dev Summit', 'Blockchain Bootcamp', 'IoT Makers Fest', 'Cloud Computing Day'],
     industries: ['Technology', 'Finance', 'Healthcare', 'Education', 'Energy', 'Retail'],
     companyNames: ['TechCorp', 'InnovateTech', 'DataDriven', 'CloudFirst', 'AIVentures', 'GreenTech Solutions', 'Bitpanda', 'GoStudent'],
@@ -73,7 +73,7 @@ async function generateMySQLData(pool) {
 
         // Generate Persons (15 people - some will be participants, some judges, some both)
         const persons = [];
-        for (let i = 0; i < 15; i++) {
+        for (let i = 0; i < 25; i++) {
             const firstName = randomElement(randomData.firstNames);
             const lastName = randomElement(randomData.lastNames);
             const email = `${firstName.toLowerCase()}.${lastName.toLowerCase()}${i}@${randomElement(randomData.domains)}`;
@@ -86,9 +86,9 @@ async function generateMySQLData(pool) {
             persons.push({ id: result.insertId, firstName, lastName, email });
         }
 
-        // Generate Participants (first 10 persons become participants)
+        // Generate Participants (first 20 persons become participants)
         const participants = [];
-        for (let i = 0; i < 10; i++) {
+        for (let i = 0; i < 20; i++) {
             const regDate = randomDate(new Date('2025-01-01'), new Date('2025-11-01'));
             const managerId = i > 2 ? participants[randomInt(0, Math.min(i-1, 2))].id : null;
             
@@ -99,9 +99,9 @@ async function generateMySQLData(pool) {
             participants.push({ ...persons[i] });
         }
 
-        // Generate Judges (persons 8-14 become judges - some overlap with participants)
+        // Generate Judges (persons 20-24 become judges - disjoint from participants)
         const judges = [];
-        for (let i = 8; i < 15; i++) {
+        for (let i = 20; i < 25; i++) {
             await conn.query(
                 'INSERT INTO Judge (person_id, expertise_area, years_experience, organization) VALUES (?, ?, ?, ?)',
                 [persons[i].id, randomElement(randomData.expertiseAreas), randomInt(2, 20), randomElement(randomData.organizations)]
@@ -119,23 +119,23 @@ async function generateMySQLData(pool) {
             venues.push({ id: result.insertId });
         }
 
-        // Generate HackathonEvents (4 events)
+        // Generate HackathonEvents (10 events)
         const events = [];
-        for (let i = 0; i < 4; i++) {
-            const startDate = randomDate(new Date('2025-01-15'), new Date('2025-12-01'));
+        for (let i = 0; i < 10; i++) {
+            const startDate = randomDate(new Date('2025-01-15'), new Date('2026-01-20'));
             const endDate = new Date(startDate);
             endDate.setDate(endDate.getDate() + randomInt(1, 3));
             
             const [result] = await conn.query(
                 'INSERT INTO HackathonEvent (name, start_date, end_date, event_type, max_participants, venue_id) VALUES (?, ?, ?, ?, ?, ?)',
-                [randomData.eventNames[i], formatDate(startDate), formatDate(endDate), randomElement(randomData.eventTypes), randomInt(50, 200), venues[i % venues.length].id]
+                [randomElement(randomData.eventNames), formatDate(startDate), formatDate(endDate), randomElement(randomData.eventTypes), randomInt(50, 200), venues[i % venues.length].id]
             );
             events.push({ id: result.insertId, startDate, endDate });
         }
 
-        // Generate Sponsors (6 sponsors)
+        // Generate Sponsors (3 sponsors)
         const sponsors = [];
-        for (let i = 0; i < 6; i++) {
+        for (let i = 0; i < 5; i++) {
             const [result] = await conn.query(
                 'INSERT INTO Sponsor (company_name, industry, website, contribution_amount) VALUES (?, ?, ?, ?)',
                 [randomData.companyNames[i], randomElement(randomData.industries), `https://www.${randomData.companyNames[i].toLowerCase().replace(' ', '')}.com`, randomInt(5000, 50000)]
@@ -143,10 +143,10 @@ async function generateMySQLData(pool) {
             sponsors.push({ id: result.insertId });
         }
 
-        // Generate Submissions (8 submissions)
+        // Generate Submissions (7 submissions)
         const submissions = [];
-        for (let i = 0; i < 8; i++) {
-            const subTime = randomDate(new Date('2025-11-08'), new Date('2025-11-15'));
+        for (let i = 0; i < 7; i++) {
+            const subTime = randomDate(new Date('2025-10-08'), new Date('2025-11-15'));
             const [result] = await conn.query(
                 'INSERT INTO Submission (project_name, description, submission_time, technology_stack, repository_url) VALUES (?, ?, ?, ?, ?)',
                 [

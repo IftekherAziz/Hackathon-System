@@ -23,7 +23,7 @@ CREATE TABLE Person (
     phone VARCHAR(50)
 );
 
--- Create Participant table (IS-A Person - total, overlapping)
+-- Create Participant table (IS-A Person - total, disjoint)
 CREATE TABLE Participant (
     person_id INT PRIMARY KEY,
     registration_date DATE NOT NULL,
@@ -34,7 +34,7 @@ CREATE TABLE Participant (
     FOREIGN KEY (manager_id) REFERENCES Participant(person_id) ON DELETE SET NULL
 );
 
--- Create Judge table (IS-A Person - total, overlapping)
+-- Create Judge table (IS-A Person - total, disjoint)
 CREATE TABLE Judge (
     person_id INT PRIMARY KEY,
     expertise_area VARCHAR(255),
